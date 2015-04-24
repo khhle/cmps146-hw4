@@ -32,6 +32,7 @@ class MantisBrain:
       if message == 'timer':
         # chase down that slug who bumped into us
         if self.target:
+          #print self.target
           if random.random() < 0.5:
             self.body.stop()
             self.state = 'idle'
@@ -47,22 +48,32 @@ class SlugBrain:
 
   def __init__(self, body):
     self.body = body
-
+    self.state = None
+    self.target = None
 
   def handle_event(self, message, details):
     # TODO: IMPLEMENT THIS METHOD
     #  (Use helper methods and classes to keep your code organized where
     #  approprioate.)
 
+    #find yourself
+    you = self.body.find_nearest('Slug')
+    #if low health, start fleeing
+    if you.amount < 0.5:
+        self.state = 'flee'
+
+
     #If player give out order to slug:
     if message == 'order':
         if details == 'i':
             #Implement idle
+            self.state = 'idle'
             self.body.stop()
+
 
         elif details == 'a':
             #Implement attack
-            self.body.stop()
+            self.state = 'attack'
 
         elif details == 'h':
             #Implement harvest:
@@ -75,13 +86,31 @@ class SlugBrain:
         else:
             #Implement move command
             self.body.go_to(details)
+            self.state = 'moving'
 
+    #Attack case
+    if self.state == 'attack' :
+        self.target = self.body.find_nearest('Mantis')
+        self.body.follow(self.target)
+        self.body.set_alarm(1)
+
+        if message == 'collide' and details['what'] == 'Mantis':
+            mantis = details['who']
+            mantis.amount -= 0.05 # take a tiny little bite
+
+    #Flee case
+    if self.state == 'flee':
+        self.target = self.body.find_nearest('Nest')
+        self.body.follow(self.target)
+
+        if message == 'collide' and details['what'] == 'Nest':
+            you.amount += 0.5
 
     pass    
 
 world_specification = {
   'worldgen_seed': 13, # comment-out to randomize
-  'nests': 2,
+  'nests': 4,
   'obstacles': 25,
   'resources': 5,
   'slugs': 5,
