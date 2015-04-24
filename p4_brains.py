@@ -53,6 +53,30 @@ class SlugBrain:
     # TODO: IMPLEMENT THIS METHOD
     #  (Use helper methods and classes to keep your code organized where
     #  approprioate.)
+
+    #If player give out order to slug:
+    if message == 'order':
+        if details == 'i':
+            #Implement idle
+            self.body.stop()
+
+        elif details == 'a':
+            #Implement attack
+            self.body.stop()
+
+        elif details == 'h':
+            #Implement harvest:
+            self.body.stop()
+
+        elif details == 'b':
+            #implement build
+            self.body.stop()
+
+        else:
+            #Implement move command
+            self.body.go_to(details)
+
+
     pass    
 
 world_specification = {
