@@ -291,6 +291,8 @@ class World:
     else:
       candidates = self.all_objects
 
+    if not candidates:
+        return None
     return min(filter(where,candidates),key=lambda obj: field(obj.position))
 
 
@@ -336,8 +338,9 @@ class ObjectFollower(Controller):
     dx = self.target.position[0] - obj.position[0]
     dy = self.target.position[1] - obj.position[1]
     mag = math.sqrt(dx*dx+dy*dy)
-    obj.position = (obj.position[0] + dt*obj.speed*dx/mag,
-                    obj.position[1] + dt*obj.speed*dy/mag)
+    if mag != 0:
+        obj.position = (obj.position[0] + dt*obj.speed*dx/mag,
+                        obj.position[1] + dt*obj.speed*dy/mag)
 
 class FieldFollower(Controller):
   """behavior of descending a given distance field"""
@@ -414,7 +417,8 @@ class GameObject(object):
     return self.world.find_nearest(self, clazz)
 
   def follow(self, target):
-    self.controller = ObjectFollower(target)
+    if target:
+        self.controller = ObjectFollower(target)
 
   def stop(self):
     self.controller = None
