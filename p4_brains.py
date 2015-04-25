@@ -48,52 +48,69 @@ class SlugBrain:
 
   def __init__(self, body):
     self.body = body
-    self.state = None
+    self.state = 'idle'
+    self.prev_state = self.state
     self.target = None
+    self.no_target = False
+    self.has_resource = False
+    self.body.set_alarm(0.5)
 
   def handle_event(self, message, details):
     # TODO: IMPLEMENT THIS METHOD
     #  (Use helper methods and classes to keep your code organized where
-    #  approprioate.)
-
+    #  appropriate.)
+    
     #find yourself
     you = self.body.find_nearest('Slug')
+    
     #if low health, start fleeing
     if you.amount < 0.5:
-        self.state = 'flee'
-
-
+        self.set_state('flee')
+        
     #If player give out order to slug:
     if message == 'order':
         if details == 'i':
-            #Implement idle
-            self.state = 'idle'
-            self.body.stop()
-
+            #Idle
+            self.set_state('idle')
 
         elif details == 'a':
-            #Implement attack
-            self.state = 'attack'
+            #Attack
+            self.set_state('attack')
 
         elif details == 'h':
-            #Implement harvest:
-            self.body.stop()
+            #Harvest:
+            self.set_state('harvest')
 
         elif details == 'b':
-            #implement build
-            self.body.stop()
+            #Build
+            self.set_state('build')
 
         else:
-            #Implement move command
+            #Move command
+            self.set_state('moving')
             self.body.go_to(details)
-            self.state = 'moving'
 
+    if self.state == 'idle':
+        self.body.stop()
+        
+        if message == 'timer':
+            self.reset_timer()
+            
+    if self.state == 'moving':
+        if message == 'timer':
+            self.reset_timer()
+        #should probably reset to idle once the destination is reached here
+    
     #Attack case
-    if self.state == 'attack' :
-        self.target = self.body.find_nearest('Mantis')
-        self.body.follow(self.target)
-        self.body.set_alarm(1)
-
+    if self.state == 'attack':
+        if message == 'timer':
+            self.target = self.body.find_nearest('Mantis')
+            self.reset_timer()
+            
+            if self.target:
+                self.body.follow(self.target)
+            elif self.no_target:
+                self.state_finished()
         if message == 'collide' and details['what'] == 'Mantis':
             mantis = details['who']
             mantis.amount -= 0.05 # take a tiny little bite
@@ -101,12 +118,79 @@ class SlugBrain:
     #Flee case
     if self.state == 'flee':
         self.target = self.body.find_nearest('Nest')
-        self.body.follow(self.target)
+        
+        if message == 'timer':
+            self.reset_timer()
+        
+        self.body.go_to(self.target)
 
         if message == 'collide' and details['what'] == 'Nest':
             you.amount += 0.5
+        
+        if you.amount > 0.75:
+            self.state = self.prev_state
+    
+    #Harvest
+    if self.state == 'harvest':
+        if message == 'collide':
+            if details['what'] == 'Nest':
+                nest = details['who']
+                if self.has_resource:
+                    self.has_resource = False
+            elif details['what'] == 'Resource':
+                resource = details['who']
+                if not self.has_resource:
+                    self.has_resource = True
+                    resource.amount -= 0.25
+                
+        if message == 'timer':
+            if self.has_resource:
+                self.target = self.body.find_nearest('Nest')
+            else:
+                self.target = self.body.find_nearest('Resource')
+                
+            self.reset_timer()
+        
+            if self.target:
+                self.body.go_to(self.target)
+            elif self.no_target:
+                self.state_finished()
+        
+    #Build
+    if self.state == 'build':
+        if message == 'collide':
+            if details['what'] == 'Nest':
+                nest = details['who']
+                nest.amount += 0.01
+                
+        if message == 'timer':
+            self.target = self.body.find_nearest('Nest')
+            self.reset_timer()
+        
+            if self.target:
+                self.body.go_to(self.target)
+            elif self.no_target:
+                self.state_finished()
 
-    pass    
+  def reset_timer(self):
+    self.body.set_alarm(0.5)
+    
+    if self.target:
+        self.no_target = False
+    else:
+        self.no_target = True
+        
+  def set_state(self, state):
+    if self.prev_state is not self.state:
+        self.prev_state = self.state
+    self.state = state
+    
+  def state_finished(self):
+    self.no_target = False
+    if self.state == self.prev_state:
+        self.state = 'idle'
+    else:
+        self.state = self.prev_state
 
 world_specification = {
   'worldgen_seed': 13, # comment-out to randomize
